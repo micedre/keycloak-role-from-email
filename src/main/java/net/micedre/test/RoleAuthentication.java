@@ -99,6 +99,9 @@ public class RoleAuthentication implements Authenticator, AuthenticatorFactory {
 
     UserModel user = context.getUser();
     String email2 = formData.getFirst(Validation.FIELD_EMAIL);
+    if (email2 == null) {
+      email2 = user.getEmail();
+    }
     AuthenticatorConfigModel mailDomainConfig = context.getAuthenticatorConfig();
 
     String[] domains =
@@ -108,16 +111,19 @@ public class RoleAuthentication implements Authenticator, AuthenticatorFactory {
 
     RoleModel roleModel = keycloakSession.getContext().getRealm().getRole(customRole);
     if (roleModel != null) {
-      logger.warn("No role found for : " + customRole);
+      logger.warn("Role found for : " + customRole);
       for (String domain : domains) {
-        if (email2.endsWith(domain)) {
-          logger.infov("Applying role " + customRole + " to user " + email2);
+        if (email2 != null && email2.endsWith(domain)) {
+          logger.info("Applying role " + customRole + " to user " + email2);
           user.grantRole(roleModel);
           user.getRealmRoleMappings().add(roleModel);
           user.getRoleMappings().add(roleModel);
-          break;
+          context.success();
+          return;
         }
       }
+      logger.info("Removing role " + customRole + " for email " + email2);
+      user.deleteRoleMapping(roleModel);
     }
     context.success();
   }
@@ -139,7 +145,7 @@ public class RoleAuthentication implements Authenticator, AuthenticatorFactory {
 
   @Override
   public boolean requiresUser() {
-    return false;
+    return true;
   }
 
   @Override
